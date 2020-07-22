@@ -82,5 +82,23 @@ async function add_employee(first_name, last_name, role_name) {
 }
 
 
-add_employee('Sam', 'Barrow', 'Software Engineer')
+function viewAllEmployees() {
+    var sqlQuery = "SELECT e1.first_name AS FirstName, e1.last_name AS LastName, r.title AS Title, d.dept_name AS DepartmentName, r.salary AS Salary, CONCAT(e2.first_name, ' ', e2.last_name) AS Manager ";
+    sqlQuery += "FROM employees AS e1, employees AS e2, roles AS r, departments AS d "
+    sqlQuery += "WHERE e1.role_id = r.id AND r.department_id = d.id AND e1.manager_id = e2.id"
+    connection.query(sqlQuery, (err, res) => {
+        if (err) throw err
+        var sqlQuery2 = "SELECT e.first_name AS FirstName, e.last_name AS LastName, r.title AS Title, d.dept_name AS DepartmentName, r.salary AS Salary ";
+        sqlQuery2 += "FROM employees AS e, roles AS r, departments AS d "
+        sqlQuery2 += "WHERE e.role_id = r.id AND r.department_id = d.id AND e.manager_id IS NULL"
+        connection.query(sqlQuery2, (err, res2) => {
+            if (err) throw err;
+            for (const row of res2) {
+                res.push(row)
+            }
+            console.table(res)
+        })
+    })
+}
 
+viewAllEmployees()
