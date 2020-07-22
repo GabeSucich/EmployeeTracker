@@ -13,9 +13,37 @@ var connection = mysql.createConnection({
 connection.connect(err => {
     if (err) throw err
     console.log("Connected as id " + connection.threadId)
+    // init()
 })
 
-function add_department(dept_name) {
+async function init() {
+    var action_choices = [
+        "Add an employee", "Add a role", "Add a department", "Update employee role", "View all employees", "View employees by deparment"
+    ];
+    var response = await inquirer.prompt({name: "action", type:"list", message:"What would you like to do?", "choices": action_choices})
+    callAppropriateAction(response)
+}
+
+// Function which will call the appropriate function based on the inquirer response
+function callAppropriateAction(inquirerRes) {
+    switch (inquirerRes.action) {
+        case "Add an employee":
+            handleAddDepartment()
+        case "Add a role":
+            handleAddRole()
+        case "Add a department":
+            handleAddDepartment()
+        case "Update employee role":
+            handleUpdateEmployeeRole()
+        case "View all employees":
+            handleViewAllEmployees()
+        case "View employees by department":
+            handleViewByRole()
+    }
+}
+
+// Function which communicate with the SQL 
+function addDepartment(dept_name) {
     connection.query(`INSERT INTO departments(dept_name) VALUES ('${dept_name}')`, (err, res) => {
         if (err) throw err;
         console.log("New department added!");
@@ -23,7 +51,7 @@ function add_department(dept_name) {
     })
 }
 
-function add_role(role_name, salary, dept_name) {
+function addRole(role_name, salary, dept_name) {
     connection.query(`SELECT id FROM departments WHERE dept_name = '${dept_name}'`,
         (err, res) => {
             var dept_id = res[0].id
@@ -36,7 +64,7 @@ function add_role(role_name, salary, dept_name) {
         })
 }
 
-async function add_employee(first_name, last_name, role_name) {
+async function addEmployee(first_name, last_name, role_name) {
 
     var firstRes = await inquirer.prompt({ name: "has_manager", type: "list", choices: ["yes", "no"], message: "Does this employee have a manager?" })
     if (firstRes.has_manager === 'yes') var has_manager = true
@@ -85,20 +113,23 @@ async function add_employee(first_name, last_name, role_name) {
 function viewAllEmployees() {
 
     var sqlQuery = "SELECT e1.first_name AS FirstName, e1.last_name AS LastName, r.title AS Title, d.dept_name AS DepartmentName, r.salary AS Salary, CONCAT(e2.first_name, ' ', e2.last_name) AS Manager ";
-    sqlQuery += "FROM employees AS e1, employees AS e2, roles AS r, departments AS d "
-    sqlQuery += "WHERE e1.role_id = r.id AND r.department_id = d.id AND e1.manager_id = e2.id"
+    sqlQuery += "FROM employees AS e1 "
+    sqlQuery += "LEFT JOIN roles AS r ON e1.role_id = r.id " 
+    sqlQuery += "LEFT JOIN departments AS d ON r.department_id = d.id "
+    sqlQuery += "LEFT JOIN employees AS e2 ON e1.manager_id = e2.id"
     connection.query(sqlQuery, (err, res) => {
         if (err) throw err
-        var sqlQuery2 = "SELECT e.first_name AS FirstName, e.last_name AS LastName, r.title AS Title, d.dept_name AS DepartmentName, r.salary AS Salary ";
-        sqlQuery2 += "FROM employees AS e, roles AS r, departments AS d "
-        sqlQuery2 += "WHERE e.role_id = r.id AND r.department_id = d.id AND e.manager_id IS NULL"
-        connection.query(sqlQuery2, (err, res2) => {
-            if (err) throw err;
-            for (const row of res2) {
-                res.push(row)
-            }
-            console.table(res)
-        })
+        console.table(res)
+        // var sqlQuery2 = "SELECT e.first_name AS FirstName, e.last_name AS LastName, r.title AS Title, d.dept_name AS DepartmentName, r.salary AS Salary ";
+        // sqlQuery2 += "FROM employees AS e, roles AS r, departments AS d "
+        // sqlQuery2 += "WHERE e.role_id = r.id AND r.department_id = d.id AND e.manager_id IS NULL"
+        // connection.query(sqlQuery2, (err, res2) => {
+        //     if (err) throw err;
+        //     for (const row of res2) {
+        //         res.push(row)
+        //     }
+        //     console.table(res)
+        // })
     })
 }
 
@@ -127,4 +158,36 @@ function updateEmployeeRole(name, new_role) {
     })
 }
 
-updateEmployeeRole('Sam Barrow', 'Software Engineer')
+function viewByRole(role) {
+    connection.query(`SELECT id FROM roles WHERE title = '${role}'`, (err, res) => {
+        if (err) throw err;
+        var role_id = res[0].id;
+        var sqlQuery = "SELECT e.first_name AS FirstName, e.last_name AS LastName, CONCAT(e2.first_name, ' ', e2.last_name) AS Manager "
+        sqlQuery += `FROM employees AS e INNER JOIN employees AS e2 ON e.manager_id = e2.id AND e.role_id = ${role_id}`
+        connection.query(sqlQuery, (err, res) => {
+            if (err) throw err
+            console.table(res)
+
+        })
+    })
+}
+
+function viewByDepartment(department) {
+    connection.query(`SELECT id from departments WHERE dept_name = '${department}'`, (err, res) => {
+        if (err) throw err
+        dept_id = res[0].id
+        var sqlQuery = `SELECT e.first_name AS FirstName, e.last_name AS LastName, r.title AS Title, r.salary AS Salary, CONCAT(e2.first_name, ' ', e2.last_name) AS Manager `;
+        sqlQuery += `FROM employees AS e `
+        sqlQuery += `INNER JOIN departments AS d ON d.id = ${dept_id} `
+        sqlQuery += `INNER JOIN roles AS r ON r.department_id = d.id AND e.role_id = r.id `
+        sqlQuery += `LEFT JOIN employees AS e2 ON e.manager_id = e2.id`
+
+        connection.query(sqlQuery, (err, res) => {
+            if (err) throw err
+            console.table(res)
+        })
+    })
+    
+}
+
+viewByDepartment('IT')
