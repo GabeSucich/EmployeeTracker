@@ -25,6 +25,11 @@ async function init() {
     callAppropriateAction(response)
 }
 
+async function isComplete() {
+    var action = await inquirer.prompt({name:"finished", type:"list", choices:["yes", "no"], message:"Are you finished?"})
+    if (action.finished === 'no') init()
+}
+
 // Function which will call the appropriate function based on the inquirer response
 function callAppropriateAction(inquirerRes) {
     switch (inquirerRes.action) {
@@ -161,6 +166,7 @@ function addDepartment(dept_name) {
         connection.query(`INSERT INTO departments(dept_name) VALUES ('${dept_name}')`, (err, res) => {
             if (err) throw err;
             console.log("New department added!");
+            isComplete()
         })
     })
 }
@@ -174,11 +180,10 @@ function addRole(role_name, salary, dept_name) {
                 (err, res) => {
                     if (err) throw err;
                     console.log(`Role has been added!`)
+                    isComplete()
                 })
         })
 }
-
-
 
 async function addEmployee(first_name, last_name, role_name) {
 
@@ -211,6 +216,7 @@ async function addEmployee(first_name, last_name, role_name) {
                     connection.query(`INSERT INTO employees(first_name, last_name, role_id, manager_id) VALUES ('${first_name}', '${last_name}', '${role_id}', '${manager_id}')`, (err, res) => {
                         if (err) throw err
                         console.log(`${first_name} ${last_name} added to database!`)
+                        isComplete()
                     })
                 })
             })
@@ -219,6 +225,7 @@ async function addEmployee(first_name, last_name, role_name) {
             connection.query(`INSERT INTO employees(first_name, last_name, role_id) VALUES ('${first_name}', '${last_name}', ${role_id})`, (err, res) => {
                 if (err) throw err
                 console.log(`${first_name} ${last_name} added to database!`)
+                isComplete()
             })
         }
     })
@@ -235,6 +242,7 @@ function viewAllEmployees() {
     connection.query(sqlQuery, (err, res) => {
         if (err) throw err
         console.table(res)
+        isComplete()
     })
 }
 
@@ -258,6 +266,7 @@ function updateEmployeeRole(name, new_role) {
             (err, res) => {
                 if (err) throw err
                 console.log(`${name}'s role successfully changed!`)
+                isComplete()
             }
         )
     })
@@ -272,7 +281,7 @@ function viewByRole(role) {
         connection.query(sqlQuery, (err, res) => {
             if (err) throw err
             console.table(res)
-
+            isComplete()
         })
     })
 }
@@ -289,6 +298,7 @@ function viewByDepartment(department) {
         connection.query(sqlQuery, (err, res) => {
             if (err) throw err
             console.table(res)
+            isComplete()
         })
     })
 }
