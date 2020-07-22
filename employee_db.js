@@ -13,14 +13,15 @@ var connection = mysql.createConnection({
 connection.connect(err => {
     if (err) throw err
     console.log("Connected as id " + connection.threadId)
-    // init()
+    init()
+
 })
 
 async function init() {
     var action_choices = [
-        "Add an employee", "Add a role", "Add a department", "Update employee role", "View all employees", "View employees by deparment"
+        "Add an employee", "Add a role", "Add a department", "Update employee role", "View all employees", "View employees by department", "View employees by role"
     ];
-    var response = await inquirer.prompt({name: "action", type:"list", message:"What would you like to do?", "choices": action_choices})
+    var response = await inquirer.prompt({ name: "action", type: "list", message: "What would you like to do?", "choices": action_choices })
     callAppropriateAction(response)
 }
 
@@ -28,26 +29,127 @@ async function init() {
 function callAppropriateAction(inquirerRes) {
     switch (inquirerRes.action) {
         case "Add an employee":
-            handleAddDepartment()
+            handleAddEmployee()
+            break;
         case "Add a role":
             handleAddRole()
+            break;
         case "Add a department":
             handleAddDepartment()
+            break;
         case "Update employee role":
             handleUpdateEmployeeRole()
+            break;
         case "View all employees":
             handleViewAllEmployees()
+            break;
         case "View employees by department":
+            handleViewByDepartment()
+            break;
+        case "Voew employees by role":
             handleViewByRole()
+            break;
+
     }
 }
 
-// Function which communicate with the SQL 
+// FUNCTIONS TO HANDLE CHOICE OF ACTION
+
+async function handleAddDepartment() {
+    var dept = await inquirer.prompt({ name: "name", type: "input", message: "What is the name of the new department to add?" })
+    addDepartment(dept.name)
+}
+
+async function handleAddRole() {
+
+    dept_choices = []
+    connection.query('SELECT dept_name FROM departments', async (err, res) => {
+
+        if (err) throw err
+
+        for (const row of res) {
+            dept_choices.push(row.dept_name)
+        }
+        var role = await inquirer.prompt([
+            { name: "name", type: "input", message: "What is the name of the new role to add?" },
+            { name: "salary", type: "number", message: "What is the salary for this role?" },
+            { name: "dept", type: "list", choices: dept_choices, message: "Under which department is this role?" }
+        ])
+        addRole(role.name, role.salary, role.dept)
+    })
+
+}
+
+async function handleAddEmployee() {
+    var name = await inquirer.prompt([
+        {name:"first", message: "What is the employee's first name?", type:"input"},
+        {name:"last", message:"What is the employee's last name?", type:"input"}])
+    3
+    var role_choices = [];
+    connection.query("SELECT title from roles", async (err, res) => {
+        if (err) throw err
+        for (const row of res) {
+            role_choices.push(row.title)
+        }
+        var role = await inquirer.prompt({name: "title", type:"list", choices:role_choices, message:"What is the employee's role?"})
+
+        addEmployee(name.first, name.last, role.title)
+    })
+}
+
+function handleViewAllEmployees() {
+    viewAllEmployees()
+}
+
+async function handleUpdateEmployeeRole() {
+    var all_employees = [];
+    var all_roles = []
+    connection.query("SELECT CONCAT(first_name, ' ', last_name) AS name FROM employees", async (err, res) => {
+        if (err) throw err
+        for (const row of res) {
+            all_employees.push(row.name)
+        }
+        var employee = await inquirer.prompt({name:"full_name", type:"list", "choices":all_employees, message:"Which employee's role would you like to update?"})
+        connection.query(`SELECT title FROM roles`, async (err, res) => {
+            if (err) throw err
+            for (const row of res) {
+                all_roles.push(row.title)
+            }
+            var role = await inquirer.prompt({name:"title", type:"list", "choices":all_roles, message:`What is ${employee.full_name}'s new role?`})
+            updateEmployeeRole(employee.full_name, role.title)
+        })
+    })
+}
+
+async function handleViewByDepartment() {
+
+    connection.query("SELECT dept_name FROM departments", async (err, res) => {
+        if (err) throw err
+        dept_choices = []
+        for (const row of res) {
+            dept_choices.push(row.dept_name)
+        }
+        var dept = await inquirer.prompt({name:"name", type:"list", choices: dept_choices, message:"Which department's employees are you looking for?"})
+        viewByDepartment(dept.name)
+    })
+    
+}
+
+// FUNCTIONS TO GATHER INFORMATION FROM SQL
+
 function addDepartment(dept_name) {
-    connection.query(`INSERT INTO departments(dept_name) VALUES ('${dept_name}')`, (err, res) => {
-        if (err) throw err;
-        console.log("New department added!");
-        console.table(res)
+    connection.query("SELECT * FROM departments", (err, res) => {
+        if (err) throw err
+        for (const row of res) {
+            if (row.dept_name === dept_name) {
+                console.log("This department already exists!")
+                return
+            }
+        }
+        connection.query(`INSERT INTO departments(dept_name) VALUES ('${dept_name}')`, (err, res) => {
+            if (err) throw err;
+            console.log("New department added!");
+        })
     })
 }
 
@@ -64,6 +166,8 @@ function addRole(role_name, salary, dept_name) {
         })
 }
 
+
+
 async function addEmployee(first_name, last_name, role_name) {
 
     var firstRes = await inquirer.prompt({ name: "has_manager", type: "list", choices: ["yes", "no"], message: "Does this employee have a manager?" })
@@ -79,7 +183,6 @@ async function addEmployee(first_name, last_name, role_name) {
             connection.query(`SELECT first_name, last_name FROM employees`, async (err, res) => {
                 if (err) throw err;
 
-                console.log(res)
                 var manager_choices = [];
                 for (const employee of res) {
                     manager_choices.push(employee.first_name + " " + employee.last_name)
@@ -114,22 +217,12 @@ function viewAllEmployees() {
 
     var sqlQuery = "SELECT e1.first_name AS FirstName, e1.last_name AS LastName, r.title AS Title, d.dept_name AS DepartmentName, r.salary AS Salary, CONCAT(e2.first_name, ' ', e2.last_name) AS Manager ";
     sqlQuery += "FROM employees AS e1 "
-    sqlQuery += "LEFT JOIN roles AS r ON e1.role_id = r.id " 
+    sqlQuery += "LEFT JOIN roles AS r ON e1.role_id = r.id "
     sqlQuery += "LEFT JOIN departments AS d ON r.department_id = d.id "
     sqlQuery += "LEFT JOIN employees AS e2 ON e1.manager_id = e2.id"
     connection.query(sqlQuery, (err, res) => {
         if (err) throw err
         console.table(res)
-        // var sqlQuery2 = "SELECT e.first_name AS FirstName, e.last_name AS LastName, r.title AS Title, d.dept_name AS DepartmentName, r.salary AS Salary ";
-        // sqlQuery2 += "FROM employees AS e, roles AS r, departments AS d "
-        // sqlQuery2 += "WHERE e.role_id = r.id AND r.department_id = d.id AND e.manager_id IS NULL"
-        // connection.query(sqlQuery2, (err, res2) => {
-        //     if (err) throw err;
-        //     for (const row of res2) {
-        //         res.push(row)
-        //     }
-        //     console.table(res)
-        // })
     })
 }
 
@@ -139,7 +232,7 @@ function updateEmployeeRole(name, new_role) {
     connection.query(`SELECT id FROM roles WHERE title = '${new_role}'`, (err, res) => {
         if (err) throw err
         roleID = res[0].id
-        connection.query('UPDATE employees SET ? WHERE ? AND ?', 
+        connection.query('UPDATE employees SET ? WHERE ? AND ?',
             [{
                 role_id: roleID
             },
@@ -149,7 +242,7 @@ function updateEmployeeRole(name, new_role) {
             {
                 last_name: lastName
             }
-            ], 
+            ],
             (err, res) => {
                 if (err) throw err
                 console.log(`${name}'s role successfully changed!`)
@@ -187,7 +280,5 @@ function viewByDepartment(department) {
             console.table(res)
         })
     })
-    
-}
 
-viewByDepartment('IT')
+}
