@@ -46,7 +46,7 @@ function callAppropriateAction(inquirerRes) {
         case "View employees by department":
             handleViewByDepartment()
             break;
-        case "Voew employees by role":
+        case "View employees by role":
             handleViewByRole()
             break;
 
@@ -132,7 +132,19 @@ async function handleViewByDepartment() {
         var dept = await inquirer.prompt({name:"name", type:"list", choices: dept_choices, message:"Which department's employees are you looking for?"})
         viewByDepartment(dept.name)
     })
-    
+}
+
+function handleViewByRole() {
+
+    connection.query("SELECT title FROM roles", async (err, res) => {
+        if (err) throw err
+        title_choices = [];
+        for (const row of res) {
+            title_choices.push(row.title);
+        }
+        var role = await inquirer.prompt({name:'title', type:"list", choices:title_choices, message:"Which role are you looking for?"})
+        viewByRole(role.title)
+    })
 }
 
 // FUNCTIONS TO GATHER INFORMATION FROM SQL
@@ -264,7 +276,6 @@ function viewByRole(role) {
         })
     })
 }
-
 function viewByDepartment(department) {
     connection.query(`SELECT id from departments WHERE dept_name = '${department}'`, (err, res) => {
         if (err) throw err
@@ -280,5 +291,5 @@ function viewByDepartment(department) {
             console.table(res)
         })
     })
-
 }
+
