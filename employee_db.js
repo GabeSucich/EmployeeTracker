@@ -83,6 +83,7 @@ async function add_employee(first_name, last_name, role_name) {
 
 
 function viewAllEmployees() {
+
     var sqlQuery = "SELECT e1.first_name AS FirstName, e1.last_name AS LastName, r.title AS Title, d.dept_name AS DepartmentName, r.salary AS Salary, CONCAT(e2.first_name, ' ', e2.last_name) AS Manager ";
     sqlQuery += "FROM employees AS e1, employees AS e2, roles AS r, departments AS d "
     sqlQuery += "WHERE e1.role_id = r.id AND r.department_id = d.id AND e1.manager_id = e2.id"
@@ -101,4 +102,29 @@ function viewAllEmployees() {
     })
 }
 
-viewAllEmployees()
+function updateEmployeeRole(name, new_role) {
+    firstName = name.split(" ")[0]
+    lastName = name.split(" ")[1]
+    connection.query(`SELECT id FROM roles WHERE title = '${new_role}'`, (err, res) => {
+        if (err) throw err
+        roleID = res[0].id
+        connection.query('UPDATE employees SET ? WHERE ? AND ?', 
+            [{
+                role_id: roleID
+            },
+            {
+                first_name: firstName
+            },
+            {
+                last_name: lastName
+            }
+            ], 
+            (err, res) => {
+                if (err) throw err
+                console.log(`${name}'s role successfully changed!`)
+            }
+        )
+    })
+}
+
+updateEmployeeRole('Sam Barrow', 'Software Engineer')
