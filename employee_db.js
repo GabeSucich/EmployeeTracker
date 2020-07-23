@@ -26,7 +26,7 @@ async function init() {
 }
 
 async function isComplete() {
-    var action = await inquirer.prompt({name:"finished", type:"list", choices:["yes", "no"], message:"Are you finished?"})
+    var action = await inquirer.prompt({name:"finished", type:"list", choices:["no", "yes"], message:"Are you finished?"})
     if (action.finished === 'no') init()
 }
 
